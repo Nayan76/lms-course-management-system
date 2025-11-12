@@ -1,0 +1,17 @@
+### Add Course Offering
+POST http://localhost:8080/api/lms/offerings?course=Java101&instructor=Alice&date=15092025&min=2&max=3
+
+### Register a User to Course Offering
+POST http://localhost:8080/api/lms/offerings?course=Python101&instructor=Eve&date=15092025&min=1&max=3
+
+###
+POST http://localhost:8080/api/lms/register?email=bob@example.com&offeringId=OFFERING-Python101-Eve
+
+###
+POST http://localhost:8080/api/lms/cancel?registrationId=REG-COURSE-bob-Java101
+
+###
+POST http://localhost:8080/api/lms/allot?offeringId=OFFERING-Java101-Alice
+
+###
+GET http://localhost:8080/api/lms/offerings
