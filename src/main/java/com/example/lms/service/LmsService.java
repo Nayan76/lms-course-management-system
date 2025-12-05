@@ -40,9 +40,10 @@ public class LmsService {
                 .date(date)
                         .minEmployees(min)
                 .maxEmployees(max)
+                .offeringId("OFFERING-" + course + "-" + instructor)
                         .build();
         offeringRepo.save(offering);
-        return offering.offeringId();
+        return offering.getOfferingId();
     }
 
     @Transactional
@@ -135,12 +136,13 @@ public class LmsService {
                         r.getRegistrationId(),
                         r.getEmployeeName(),
                         r.getEmail(),
-                        off.offeringId(),
+                        off.getOfferingId(),
                         off.getCourseName(),
                         off.getInstructor(),
                         off.getDate().format(fmt),
                         r.getStatus()))
                 .toList();
+
     }
 
     public List<CourseOffering> getAllOfferings() {

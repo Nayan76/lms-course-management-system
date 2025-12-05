@@ -9,23 +9,35 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDate;
 
 @Entity
-@Table(uniqueConstraints = @UniqueConstraint(columnNames = {"courseName", "instructor"}))
-@Builder
+@Table(name = "course_offering")
 @Data
+@Builder
 @AllArgsConstructor
 @NoArgsConstructor
 public class CourseOffering {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-    private String courseName;
-    private String instructor;
-    private LocalDate date;
-    private int minEmployees;
-    private int maxEmployees;
-    private boolean allotted = false; // becomes true after ALLOT
 
-    public String offeringId(){
-        return String.format("OFFERING-%s-%s", courseName, instructor);
-    }
+    @Column(name = "course_name", nullable = false)
+    private String courseName;
+
+    @Column(nullable = false)
+    private String instructor;
+
+    @Column(nullable = false)
+    private LocalDate date;
+
+    @Column(name = "min_employees", nullable = false)
+    private int minEmployees;
+
+    @Column(name = "max_employees", nullable = false)
+    private int maxEmployees;
+
+    @Column(name = "allotted")
+    private boolean allotted = false;
+
+    @Column(name = "offering_id", unique = true, nullable = false)
+    private String offeringId;
 }
