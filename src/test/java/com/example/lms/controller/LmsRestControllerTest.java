@@ -82,27 +82,34 @@ class LmsRestControllerTest {
 
         @Test
         void testAllotCourse() throws Exception {
+                // Use UNIQUE course and instructor to avoid conflicts
+                String course = "Scala101-" + System.currentTimeMillis(); // guaranteed unique
+                String instructor = "Martin";
+                String offeringId = "OFFERING-" + course + "-" + instructor;
+
                 // 1. Create offering
                 mockMvc.perform(
                                 post("/api/lms/offerings")
-                                                .param("course", "Java101")
-                                                .param("instructor", "Alice")
+                                                .param("course", course)
+                                                .param("instructor", instructor)
                                                 .param("date", "15092025")
                                                 .param("min", "1")
-                                                .param("max", "2"));
+                                                .param("max", "2"))
+                                .andExpect(status().isOk());
 
-                // 2. Register one student (min=1, max=2 → will meet minimum)
+                // 2. Register one student with unique email
                 mockMvc.perform(
                                 post("/api/lms/register")
-                                                .param("email", "bob@example.com")
-                                                .param("offeringId", "OFFERING-Java101-Alice"));
+                                                .param("email", "unique" + System.currentTimeMillis() + "@example.com")
+                                                .param("offeringId", offeringId))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.result[0]", containsString("ACCEPTED")));
 
-                // 3. Allot → should be CONFIRMED, not CANCELLED
+                // 3. Allot → should be CONFIRMED
                 mockMvc.perform(
                                 post("/api/lms/allot")
-                                                .param("offeringId", "OFFERING-Java101-Alice"))
+                                                .param("offeringId", offeringId))
                                 .andExpect(status().isOk())
                                 .andExpect(jsonPath("$.result[0]", containsString("CONFIRMED")));
-                // ↑ This test was wrong! With 1 registration and min=1 → CONFIRMED
         }
 }

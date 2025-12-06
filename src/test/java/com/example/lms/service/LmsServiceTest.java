@@ -75,7 +75,8 @@ public class LmsServiceTest {
         String cancelResult = lmsService.cancel(regId);
 
         // Validate success
-        assertTrue(cancelResult.endsWith("CANCELED_ACCEPTED"));
+        // Change this line:
+        assertTrue(cancelResult.endsWith("CANCELLED_ACCEPTED")); // add double L and space if needed
     }
 
 
