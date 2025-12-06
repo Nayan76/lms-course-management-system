@@ -1,6 +1,6 @@
 spring:
   datasource:
-    url: jdbc:mysql://rolley.proxy.rlwy.net:57592/railway?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+    url: mysql://root:OXSOzBWqELWtyapwocjUxuAfCFiZjfGN@trolley.proxy.rlwy.net:57592/railway
     username: root
     password: OXSOzBWqELWtyapwocjUxuAfCFiZjfGN
 
