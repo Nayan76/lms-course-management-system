@@ -2,7 +2,7 @@ spring:
   datasource:
     url: jdbc:mysql://rolley.proxy.rlwy.net:57592/railway?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
     username: root
-    password: OXSOzBwqELwtyapwocjUxuAFCFiZjfgN
+    password: OXSOzBWqELWtyapwocjUxuAfCFiZjfGN
 
   jpa:
     hibernate:
