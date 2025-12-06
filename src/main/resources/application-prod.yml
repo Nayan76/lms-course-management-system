@@ -1,8 +1,7 @@
 spring:
   datasource:
-    url: mysql://root:OXSOzBWqELWtyapwocjUxuAfCFiZjfGN@trolley.proxy.rlwy.net:57592/railway
+    url: jdbc:mysql://trolley.proxy.rlwy.net:57592/railway?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
     username: root
-    password: OXSOzBWqELWtyapwocjUxuAfCFiZjfGN
 
   jpa:
     hibernate:
