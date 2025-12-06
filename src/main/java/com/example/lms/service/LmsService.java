@@ -1,6 +1,5 @@
 package com.example.lms.service;
 
-
 import com.example.lms.model.CourseOffering;
 import com.example.lms.model.Registration;
 import com.example.lms.repo.CourseOfferingRepository;
@@ -10,143 +9,184 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import java.util.*;
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.List;
 
 @Service
 public class LmsService {
+
     private final CourseOfferingRepository offeringRepo;
     private final RegistrationRepository regRepo;
     private final DateTimeFormatter fmt = DateTimeFormatter.ofPattern("ddMMyyyy");
-    public LmsService(CourseOfferingRepository o, RegistrationRepository r) {this.offeringRepo = o;this.regRepo = r;}
 
-    public String addCourseOffering(String course, String instructor, String dateStr, String minStr, String maxStr){
-        //validate
-        if (course.isBlank() || instructor.isBlank() || dateStr.isBlank() || minStr.isBlank() || maxStr.isBlank()) throw new IllegalArgumentException();
+    public LmsService(CourseOfferingRepository offeringRepo, RegistrationRepository regRepo) {
+        this.offeringRepo = offeringRepo;
+        this.regRepo = regRepo;
+    }
+
+    public String addCourseOffering(String course, String instructor, String dateStr, String minStr, String maxStr) {
+        // Input validation
+        if (isBlank(course, instructor, dateStr, minStr, maxStr)) {
+            throw new IllegalArgumentException();
+        }
+
         LocalDate date;
         int min, max;
-        try{date = LocalDate.parse(dateStr, fmt); min = Integer.parseInt(minStr); max = Integer.parseInt(maxStr);}
-        catch(Exception e) {throw new IllegalArgumentException();}
-        if(min > max || min < 0 || max <= 0) throw new IllegalArgumentException();
+        try {
+            date = LocalDate.parse(dateStr, fmt);
+            min = Integer.parseInt(minStr);
+            max = Integer.parseInt(maxStr);
+        } catch (Exception e) {
+            throw new IllegalArgumentException();
+        }
 
-        // Prevent Duplicate offerings with same course+instructor+date
+        if (min > max || min < 0 || max <= 0) {
+            throw new IllegalArgumentException();
+        }
+
+        // Prevent duplicate offering (same course + instructor)
         if (offeringRepo.findByCourseNameAndInstructor(course, instructor).isPresent()) {
             return String.format("OFFERING-%s-%s", course, instructor);
         }
-        // Unique course & instructor assumption means combination is unique
-        // create and persist
+
+        String offeringId = "OFFERING-" + course + "-" + instructor;
+
         var offering = CourseOffering.builder()
-                        .courseName(course)
+                .courseName(course)
                 .instructor(instructor)
                 .date(date)
-                        .minEmployees(min)
+                .minEmployees(min)
                 .maxEmployees(max)
-                .offeringId("OFFERING-" + course + "-" + instructor)
-                        .build();
+                .offeringId(offeringId)
+                .allotted(false)
+                .build();
+
         offeringRepo.save(offering);
-        return offering.getOfferingId();
+        return offeringId;
     }
 
     @Transactional
-    public List<String> register(String email, String offeringId){
-        if(email.isBlank() || offeringId.isBlank()) return  List.of("INPUT_DATA_ERROR");
-        // find offering
-        var opt = offeringRepo.findByOfferingId(offeringId);
-        if (opt.isEmpty()) return  List.of("INPUT_DATA_ERROR");
+    public List<String> register(String email, String offeringId) {
+        if (isBlank(email, offeringId)) {
+            return List.of("INPUT_DATA_ERROR");
+        }
 
-        CourseOffering off = opt.get();
-        // check unique email+offering
-        if (regRepo.existsByEmailAndOfferingId(email, offeringId)) return List.of("INPUT_DATA_ERROR");
-        // check if offering is already allotted
-        if(off.isAllotted()) return List.of("COURSE_FULL_ERROR"); // treat as closed
+        var offeringOpt = offeringRepo.findByOfferingId(offeringId);
+        if (offeringOpt.isEmpty()) {
+            return List.of("INPUT_DATA_ERROR");
+        }
 
-        // count current accepted (not cancelled)
-        var regs = regRepo.findByOfferingIdAndCancelledFalse(offeringId);
-        if(regs.size() >= off.getMaxEmployees()){
+        CourseOffering offering = offeringOpt.get();
+
+        if (regRepo.existsByEmailAndOfferingId(email, offeringId)) {
+            return List.of("INPUT_DATA_ERROR");
+        }
+
+        if (offering.isAllotted()) {
             return List.of("COURSE_FULL_ERROR");
-        } else {
-            // create register id
-            String empName = email.split("@")[0];
-            String regId = String.format("REG-COURSE-%s-%s", empName, off.getCourseName());
-            Registration r = new Registration(regId, email, empName, offeringId, "ACCEPTED");
-            regRepo.save(r);
-            return List.of(regId+" ACCEPTED");
         }
+
+        long activeCount = regRepo.findByOfferingIdAndCancelledFalse(offeringId).size();
+        if (activeCount >= offering.getMaxEmployees()) {
+            return List.of("COURSE_FULL_ERROR");
+        }
+
+        String empName = email.split("@")[0];
+        String regId = String.format("REG-COURSE-%s-%s", empName, offering.getCourseName());
+
+        Registration registration = new Registration(regId, email, empName, offeringId, "ACCEPTED");
+        regRepo.save(registration);
+
+        return List.of(regId + " ACCEPTED");
     }
 
     @Transactional
-    public String cancel(String registrationId){
-        if (registrationId.isBlank()) return "INPUT_DATA_ERROR";
-        var opt = regRepo.findByRegistrationId(registrationId);
-        if (opt.isEmpty()) return "INPUT_DATA_ERROR";
-        Registration r = opt.get();
-        // find offering to see if allotted
-        var offeringOpt = offeringRepo.findByOfferingId(r.getOfferingId());
-        if (offeringOpt.isEmpty()) return "INPUT_DATA_ERROR";
-        CourseOffering off = offeringOpt.get();
-        if(off.isAllotted()){
-            return registrationId + " CANCELED_REJECTED";
-        } else  {
-            r.setCancelled(true);
-            r.setStatus("CANCELED");
-            regRepo.save(r);
-            return registrationId + " CANCELED_ACCEPTED";
+    public String cancel(String registrationId) {
+        if (isBlank(registrationId)) {
+            return "INPUT_DATA_ERROR";
         }
 
+        var regOpt = regRepo.findByRegistrationId(registrationId);
+        if (regOpt.isEmpty()) {
+            return "INPUT_DATA_ERROR";
+        }
+
+        Registration registration = regOpt.get();
+        var offeringOpt = offeringRepo.findByOfferingId(registration.getOfferingId());
+
+        if (offeringOpt.isEmpty()) {
+            return "INPUT_DATA_ERROR";
+        }
+
+        CourseOffering offering = offeringOpt.get();
+
+        if (offering.isAllotted()) {
+            return registrationId + " CANCELLED_REJECTED";
+        }
+
+        registration.setCancelled(true);
+        registration.setStatus("CANCELLED");
+        regRepo.save(registration);
+
+        return registrationId + " CANCELLED_ACCEPTED";
     }
 
     @Transactional
     public List<String> allot(String offeringId) {
-        if (offeringId == null || offeringId.isBlank())
+        if (isBlank(offeringId)) {
             return List.of("INPUT_DATA_ERROR");
+        }
 
-        // Use correct repo method
-        var opt = offeringRepo.findByOfferingId(offeringId);
-        if (opt.isEmpty())
+        var offeringOpt = offeringRepo.findByOfferingId(offeringId);
+        if (offeringOpt.isEmpty()) {
             return List.of("INPUT_DATA_ERROR");
+        }
 
-        CourseOffering off = opt.get();
+        CourseOffering offering = offeringOpt.get();
 
-        // fetch all (including cancelled)
-        List<Registration> allRegs = regRepo.findByOfferingId(offeringId);
-        List<Registration> active = allRegs.stream()
+        List<Registration> allRegistrations = regRepo.findByOfferingId(offeringId);
+        long activeCount = allRegistrations.stream()
                 .filter(r -> !r.isCancelled())
-                .toList();
+                .count();
 
-        boolean meetsMin = active.size() >= off.getMinEmployees();
+        boolean meetsMinimum = activeCount >= offering.getMinEmployees();
 
-        // mark offering allotted
-        off.setAllotted(true);
-        offeringRepo.save(off);
+        // Mark offering as allotted
+        offering.setAllotted(true);
+        offeringRepo.save(offering);
 
-        // update statuses
-        for (Registration r : allRegs) {
+        // Update registration statuses
+        for (Registration r : allRegistrations) {
             if (r.isCancelled()) {
                 r.setStatus("CANCELLED");
             } else {
-                if (meetsMin) r.setStatus("CONFIRMED");
-                else r.setStatus("COURSE_CANCELED");
+                r.setStatus(meetsMinimum ? "CONFIRMED" : "COURSE_CANCELED");
             }
             regRepo.save(r);
         }
 
-        // build output list
-        return allRegs.stream()
+        // Generate output lines sorted by registration ID
+        return allRegistrations.stream()
                 .sorted(Comparator.comparing(Registration::getRegistrationId))
                 .map(r -> String.join(" ",
                         r.getRegistrationId(),
                         r.getEmployeeName(),
                         r.getEmail(),
-                        off.getOfferingId(),
-                        off.getCourseName(),
-                        off.getInstructor(),
-                        off.getDate().format(fmt),
+                        offering.getOfferingId(),
+                        offering.getCourseName(),
+                        offering.getInstructor(),
+                        offering.getDate().format(fmt),
                         r.getStatus()))
                 .toList();
-
     }
 
     public List<CourseOffering> getAllOfferings() {
         return offeringRepo.findAll();
     }
 
+    // Helper to reduce duplication
+    private boolean isBlank(String... values) {
+        return Arrays.stream(values).anyMatch(s -> s == null || s.isBlank());
+    }
 }

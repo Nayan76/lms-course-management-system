@@ -1,10 +1,6 @@
 -- ===== V1__init.sql =====
 -- Creates core LMS tables (correct schema for your Java code)
 
--- Drop old tables if they exist
-DROP TABLE IF EXISTS registration;
-DROP TABLE IF EXISTS course_offering;
-
 -- COURSE OFFERING TABLE
 CREATE TABLE course_offering (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
